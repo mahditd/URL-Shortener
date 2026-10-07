@@ -225,6 +225,10 @@ func TestInvalidURL(t *testing.T) {
 			name: "random string",
 			body: `{"url":"hello"}`,
 		},
+		{
+			name: "malformed json",
+			body: `{"url":`,
+		},
 	}
 
 	for _, tt := range tests {

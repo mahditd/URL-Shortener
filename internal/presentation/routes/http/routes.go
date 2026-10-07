@@ -11,10 +11,10 @@ func SetUpRoutes(router *gin.Engine, linkHandler *controller.LinkHandler) {
 	{
 		api.POST("/shorten", linkHandler.Shorten)
 
-		// v1 := api.Group("/v1")
-		// {
-		// 	// v1.GET("/links/:code", linkHandler.Metadata)
-		// }
+		v1 := api.Group("/v1")
+		{
+			v1.GET("/links/:code", linkHandler.Metadata)
+		}
 
 	}
 
