@@ -3,12 +3,15 @@ package controller_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/mahditd/url-shortener/internal/application/dto"
 	"github.com/mahditd/url-shortener/internal/application/usecase"
 	"github.com/mahditd/url-shortener/internal/infrastructure/persistence/memory"
 	"github.com/mahditd/url-shortener/internal/presentation/controller"
@@ -32,11 +35,6 @@ func setupTestRouter() *gin.Engine {
 }
 
 func TestShorten(t *testing.T) {
-
-	type shortenResponse struct {
-		Code     string `json:"code"`
-		ShortURL string `json:"short_url"`
-	}
 	router := setupTestRouter()
 
 	body := `{"url":"https://go.dev/doc/"}`
@@ -56,7 +54,7 @@ func TestShorten(t *testing.T) {
 		t.Fatalf("expected status 201, got %d", w.Code)
 	}
 
-	var response shortenResponse
+	var response dto.ShortenResponse
 
 	err := json.NewDecoder(w.Body).Decode(&response)
 
@@ -83,10 +81,7 @@ func TestShorten(t *testing.T) {
 }
 
 func TestShortenIdempotency(t *testing.T) {
-	type shortenResponse struct {
-		Code     string `json:"code"`
-		ShortURL string `json:"short_url"`
-	}
+
 	router := setupTestRouter()
 
 	body := `{"url":"https://go.dev/doc/"}`
@@ -113,7 +108,7 @@ func TestShortenIdempotency(t *testing.T) {
 		t.Fatalf("expected status 201, got %d", w1.Code)
 	}
 
-	var response1 shortenResponse
+	var response1 dto.ShortenResponse
 
 	err := json.NewDecoder(w1.Body).Decode(&response1)
 
@@ -129,7 +124,7 @@ func TestShortenIdempotency(t *testing.T) {
 		t.Fatalf("expected status 201, got %d", w2.Code)
 	}
 
-	var response2 shortenResponse
+	var response2 dto.ShortenResponse
 
 	err = json.NewDecoder(w2.Body).Decode(&response2)
 
@@ -149,10 +144,6 @@ func TestShortenIdempotency(t *testing.T) {
 
 func TestRedirect(t *testing.T) {
 
-	type shortenResponse struct {
-		Code     string `json:"code"`
-		ShortURL string `json:"short_url"`
-	}
 	router := setupTestRouter()
 
 	body := `{"url":"https://go.dev/doc/"}`
@@ -172,7 +163,7 @@ func TestRedirect(t *testing.T) {
 		t.Fatalf("expected status 201, got %d", w1.Code)
 	}
 
-	var response shortenResponse
+	var response dto.ShortenResponse
 
 	err := json.NewDecoder(w1.Body).Decode(&response)
 
@@ -275,11 +266,6 @@ func TestUnknownCode(t *testing.T) {
 
 func TestConcurrentDuplicateShorten(t *testing.T) {
 
-	type shortenResponse struct {
-		Code     string `json:"code"`
-		ShortURL string `json:"short_url"`
-	}
-
 	router := setupTestRouter()
 
 	const workers = 100
@@ -309,10 +295,11 @@ func TestConcurrentDuplicateShorten(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			if w.Code != http.StatusCreated {
-
+				errs <- fmt.Errorf("expected 201 got %d", w.Code)
+				return
 			}
 
-			var response shortenResponse
+			var response dto.ShortenResponse
 
 			err := json.NewDecoder(w.Body).Decode(&response)
 
@@ -346,4 +333,88 @@ func TestConcurrentDuplicateShorten(t *testing.T) {
 		}
 	}
 
+}
+
+func TestMetadataSuccess(t *testing.T) {
+
+	router := setupTestRouter()
+
+	body := `{"url":"https://go.dev/doc/"}`
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/shorten",
+		bytes.NewBufferString(body),
+	)
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d", w.Code)
+	}
+
+	var response1 dto.ShortenResponse
+
+	err := json.NewDecoder(w.Body).Decode(&response1)
+
+	if err != nil {
+		t.Fatalf("failed to decode shorten response: %v", err)
+	}
+
+	req = httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/links/"+response1.Code,
+		nil,
+	)
+	req.Header.Set("Content-Type", "application/json")
+
+	w = httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var response2 dto.MetadataResponse
+
+	err = json.NewDecoder(w.Body).Decode(&response2)
+
+	if err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if response2.URL != "https://go.dev/doc/" {
+		t.Fatalf("unexpected url: %s", response2.URL)
+	}
+
+	if response2.CreatedAt.IsZero() {
+		t.Fatal("expected created_at to be set")
+	}
+
+	if response2.CreatedAt.After(time.Now()) {
+		t.Fatal("created_at cannot be in the future")
+	}
+
+}
+
+func TestMetadataNotFound(t *testing.T) {
+	router := setupTestRouter()
+
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/api/v1/links/notexist",
+		nil,
+	)
+
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 got %d", w.Code)
+	}
 }
