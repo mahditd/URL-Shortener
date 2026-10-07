@@ -3,6 +3,8 @@ package usecase
 import (
 	"errors"
 	"net/url"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/mahditd/url-shortener/internal/application/dto"
@@ -14,6 +16,7 @@ import (
 type LinkUsecase struct {
 	repository ports.LinkRepository
 	baseUrl    string
+	mu         sync.Mutex
 }
 
 func NewLinkUsecase(repository ports.LinkRepository, baseUrl string) *LinkUsecase {
@@ -25,17 +28,26 @@ func NewLinkUsecase(repository ports.LinkRepository, baseUrl string) *LinkUsecas
 
 func (u *LinkUsecase) Shorten(req dto.ShortenRequest) (*dto.ShortenResponse, error) {
 
-	if !validateURL(req.URL) {
-		return nil, domainerrors.ErrInvalidURL
+	normalizedURL, err := normalizeURL(req.URL)
+
+	if err != nil {
+		return nil, err
 	}
 
-	exists, err := u.repository.FindByURL(req.URL)
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	exists, err := u.repository.FindByURL(normalizedURL)
 
 	if err == nil {
 		return &dto.ShortenResponse{
 			Code:     exists.Code,
 			ShortURL: u.baseUrl + "/" + exists.Code,
 		}, nil
+	}
+
+	if !errors.Is(err, domainerrors.ErrNotFound) {
+		return nil, err
 	}
 
 	var code string
@@ -49,7 +61,7 @@ func (u *LinkUsecase) Shorten(req dto.ShortenRequest) (*dto.ShortenResponse, err
 			break
 		}
 	}
-	link := entities.Link{Code: code, URL: req.URL, CreatedAt: time.Now()}
+	link := entities.Link{Code: code, URL: normalizedURL, CreatedAt: time.Now()}
 
 	err = u.repository.Save(link)
 
@@ -68,16 +80,32 @@ func (u *LinkUsecase) GetLinkByCode(code string) (*entities.Link, error) {
 	return u.repository.FindByCode(code)
 }
 
-func validateURL(rawURL string) bool {
+func normalizeURL(rawURL string) (string, error) {
+
+	rawURL = strings.TrimSpace(rawURL)
+
 	if rawURL == "" {
-		return false
+		return "", domainerrors.ErrInvalidURL
 	}
 
 	parsed, err := url.Parse(rawURL)
 
 	if err != nil {
-		return false
+		return "", domainerrors.ErrInvalidURL
 	}
 
-	return parsed.Scheme == "http" || parsed.Scheme == "https"
+	parsed.Scheme = strings.ToLower(parsed.Scheme)
+	parsed.Host = strings.ToLower(parsed.Host)
+
+	if !(parsed.Scheme == "http" || parsed.Scheme == "https") {
+		return "", domainerrors.ErrInvalidURL
+	}
+	if parsed.Host == "" {
+		return "", domainerrors.ErrInvalidURL
+	}
+
+	parsed.Path = strings.TrimRight(parsed.Path, "/")
+
+	return parsed.String(), nil
+
 }
