@@ -226,16 +226,11 @@ func TestInvalidURL(t *testing.T) {
 		},
 	}
 
-	router := setupTestRouter()
+
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			type shortenResponse struct {
-				Code     string `json:"code"`
-				ShortURL string `json:"short_url"`
-			}
-			router = setupTestRouter()
+			router := setupTestRouter()
 
 			req := httptest.NewRequest(
 				http.MethodPost,
@@ -248,11 +243,29 @@ func TestInvalidURL(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			if w.Code != http.StatusNotFound {
-				t.Fatalf("expected status 404, got %d", w.Code)
+			if w.Code != http.StatusBadRequest {
+				t.Fatalf("expected status 400, got %d", w.Code)
 			}
 
 		})
 	}
 
+}
+
+func TestUnknownCode(t *testing.T) {
+	router := setupTestRouter()
+
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/randomThing",
+		nil,
+	)
+
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", w.Code)
+	}
 }
