@@ -104,8 +104,6 @@ func normalizeURL(rawURL string) (string, error) {
 		return "", domainerrors.ErrInvalidURL
 	}
 
-	parsed.Path = strings.TrimRight(parsed.Path, "/")
-
 	return parsed.String(), nil
 
 }
