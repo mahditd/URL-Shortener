@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 	"sync"
@@ -31,7 +32,7 @@ func (u *LinkUsecase) Shorten(req dto.ShortenRequest) (*dto.ShortenResponse, err
 	normalizedURL, err := normalizeURL(req.URL)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("validate url: %w", err)
 	}
 
 	u.mu.Lock()
@@ -77,7 +78,13 @@ func (u *LinkUsecase) Shorten(req dto.ShortenRequest) (*dto.ShortenResponse, err
 
 func (u *LinkUsecase) GetLinkByCode(code string) (*entities.Link, error) {
 
-	return u.repository.FindByCode(code)
+	link, err := u.repository.FindByCode(code)
+
+	if err != nil {
+		return nil, fmt.Errorf("find link: %w", err)
+	}
+
+	return link, nil
 }
 
 func normalizeURL(rawURL string) (string, error) {
