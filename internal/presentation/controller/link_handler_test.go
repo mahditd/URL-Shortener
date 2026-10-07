@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -124,7 +125,7 @@ func TestShortenIdempotency(t *testing.T) {
 
 	router.ServeHTTP(w2, req2)
 
-	if w1.Code != http.StatusCreated {
+	if w2.Code != http.StatusCreated {
 		t.Fatalf("expected status 201, got %d", w2.Code)
 	}
 
@@ -226,8 +227,6 @@ func TestInvalidURL(t *testing.T) {
 		},
 	}
 
-
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			router := setupTestRouter()
@@ -268,4 +267,79 @@ func TestUnknownCode(t *testing.T) {
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected status 404, got %d", w.Code)
 	}
+}
+
+func TestConcurrentDuplicateShorten(t *testing.T) {
+
+	type shortenResponse struct {
+		Code     string `json:"code"`
+		ShortURL string `json:"short_url"`
+	}
+
+	router := setupTestRouter()
+
+	const workers = 100
+
+	var wg sync.WaitGroup
+
+	codes := make(chan string, workers)
+
+	errs := make(chan error, workers)
+
+	wg.Add(workers)
+
+	for i := 0; i < workers; i++ {
+
+		go func() {
+			defer wg.Done()
+
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"/api/shorten",
+				bytes.NewBufferString(`{"url":"https://go.dev/something/"}`),
+			)
+			req.Header.Set("Content-Type", "application/json")
+
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			if w.Code != http.StatusCreated {
+
+			}
+
+			var response shortenResponse
+
+			err := json.NewDecoder(w.Body).Decode(&response)
+
+			errs <- err
+
+			codes <- response.Code
+
+		}()
+	}
+
+	wg.Wait()
+
+	close(codes)
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+
+	var firstCode string
+
+	for code := range codes {
+		if firstCode == "" {
+			firstCode = code
+		} else {
+			if code != firstCode {
+				t.Fatalf("expected same code, got %s and %s", firstCode, code)
+			}
+		}
+	}
+
 }
