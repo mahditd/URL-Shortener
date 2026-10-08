@@ -48,7 +48,7 @@ func (u *LinkUsecase) Shorten(req dto.ShortenRequest) (*dto.ShortenResponse, err
 	}
 
 	if !errors.Is(err, domainerrors.ErrNotFound) {
-		return nil, err
+		return nil, fmt.Errorf("find existing url: %w", err)
 	}
 
 	var code string
@@ -61,13 +61,17 @@ func (u *LinkUsecase) Shorten(req dto.ShortenRequest) (*dto.ShortenResponse, err
 		if errors.Is(err, domainerrors.ErrNotFound) {
 			break
 		}
+
+		if err != nil {
+			return nil, fmt.Errorf("check code collision: %w", err)
+		}
 	}
 	link := entities.Link{Code: code, URL: normalizedURL, CreatedAt: time.Now()}
 
 	err = u.repository.Save(link)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("save link: %w", err)
 	}
 
 	return &dto.ShortenResponse{
