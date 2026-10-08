@@ -16,14 +16,14 @@ import (
 
 type LinkUsecase struct {
 	repository ports.LinkRepository
-	baseUrl    string
+	baseURL    string
 	mu         sync.Mutex
 }
 
-func NewLinkUsecase(repository ports.LinkRepository, baseUrl string) *LinkUsecase {
+func NewLinkUsecase(repository ports.LinkRepository, baseURL string) *LinkUsecase {
 	return &LinkUsecase{
 		repository: repository,
-		baseUrl:    baseUrl,
+		baseURL:    baseURL,
 	}
 }
 
@@ -43,7 +43,7 @@ func (u *LinkUsecase) Shorten(req dto.ShortenRequest) (*dto.ShortenResponse, err
 	if err == nil {
 		return &dto.ShortenResponse{
 			Code:     exists.Code,
-			ShortURL: u.baseUrl + "/" + exists.Code,
+			ShortURL: u.baseURL + "/" + exists.Code,
 		}, nil
 	}
 
@@ -51,20 +51,10 @@ func (u *LinkUsecase) Shorten(req dto.ShortenRequest) (*dto.ShortenResponse, err
 		return nil, fmt.Errorf("find existing url: %w", err)
 	}
 
-	var code string
+	code, err := u.generateUniqueCode()
 
-	for {
-		code = generateCode()
-
-		_, err := u.repository.FindByCode(code)
-
-		if errors.Is(err, domainerrors.ErrNotFound) {
-			break
-		}
-
-		if err != nil {
-			return nil, fmt.Errorf("check code collision: %w", err)
-		}
+	if err != nil {
+		return nil, fmt.Errorf("generate code: %w", err)
 	}
 	link := entities.Link{Code: code, URL: normalizedURL, CreatedAt: time.Now()}
 
@@ -76,7 +66,7 @@ func (u *LinkUsecase) Shorten(req dto.ShortenRequest) (*dto.ShortenResponse, err
 
 	return &dto.ShortenResponse{
 		Code:     code,
-		ShortURL: u.baseUrl + "/" + code,
+		ShortURL: u.baseURL + "/" + code,
 	}, nil
 }
 
@@ -117,4 +107,28 @@ func normalizeURL(rawURL string) (string, error) {
 
 	return parsed.String(), nil
 
+}
+
+func (u *LinkUsecase) generateUniqueCode() (string, error) {
+	const maxAttempts = 10
+
+	for i := 0; i < maxAttempts; i++ {
+
+		code, err := generateCode()
+		if err != nil {
+			return "", err
+		}
+
+		_, err = u.repository.FindByCode(code)
+
+		if errors.Is(err, domainerrors.ErrNotFound) {
+			return code, nil
+		}
+
+		if err != nil {
+			return "", fmt.Errorf("check existing code: %w", err)
+		}
+	}
+
+	return "", errors.New("could not generate unique code")
 }
