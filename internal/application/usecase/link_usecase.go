@@ -98,6 +98,17 @@ func normalizeURL(rawURL string) (string, error) {
 	parsed.Scheme = strings.ToLower(parsed.Scheme)
 	parsed.Host = strings.ToLower(parsed.Host)
 
+	switch parsed.Scheme {
+	case "http":
+		if parsed.Port() == "80" {
+			parsed.Host = parsed.Hostname()
+		}
+	case "https":
+		if parsed.Port() == "443" {
+			parsed.Host = parsed.Hostname()
+		}
+	}
+
 	if !(parsed.Scheme == "http" || parsed.Scheme == "https") {
 		return "", domainerrors.ErrInvalidURL
 	}
@@ -116,7 +127,7 @@ func (u *LinkUsecase) generateUniqueCode() (string, error) {
 
 		code, err := generateCode()
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("generate code: %w", err)
 		}
 
 		_, err = u.repository.FindByCode(code)
