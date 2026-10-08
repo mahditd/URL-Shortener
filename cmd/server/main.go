@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"net/http"
+	"time"
 
 	"github.com/mahditd/url-shortener/bootstrap"
 )
@@ -24,5 +26,13 @@ func main() {
 
 	app := bootstrap.NewApp(*baseURL)
 
-	app.Run(*addr)
+	server := &http.Server{
+		Addr:         *addr,
+		Handler:      app,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	server.ListenAndServe()
 }
