@@ -195,3 +195,84 @@ func TestNormalizeURL(t *testing.T) {
 
 	}
 }
+
+func TestShortenFindByURLFailure(t *testing.T) {
+
+	repoErr := errors.New("unknown persistence error")
+	repo := FakeRepository{FindByURLError: repoErr}
+
+	linkUsecase := NewLinkUsecase(&repo, "http://localhost:8080")
+
+	req := dto.ShortenRequest{URL: "https://go.dev/doc/"}
+
+	res, err := linkUsecase.Shorten(req)
+
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	if !errors.Is(err, repoErr) {
+		t.Fatalf("expected %v, got %v", repoErr, err)
+	}
+
+	if res != nil {
+		t.Fatalf("expected response to be nil")
+	}
+
+}
+
+func TestShortenSaveFailure(t *testing.T) {
+	saveErr := errors.New("unknown persistence error")
+
+	repo := FakeRepository{
+		SaveError:       saveErr,
+		FindByCodeError: domainerrors.ErrNotFound,
+		FindByURLError:  domainerrors.ErrNotFound,
+	}
+
+	linkUsecase := NewLinkUsecase(&repo, "http://localhost:8080")
+
+	req := dto.ShortenRequest{URL: "https://go.dev/doc/"}
+
+	res, err := linkUsecase.Shorten(req)
+
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	if !errors.Is(err, saveErr) {
+		t.Fatalf("expected %v, got %v", saveErr, err)
+	}
+
+	if res != nil {
+		t.Fatalf("expected response to be nil")
+	}
+
+}
+
+func TestShortenFindByCodeFailure(t *testing.T) {
+	codeErr := errors.New("unknown persistence error")
+
+	repo := FakeRepository{
+		FindByURLError:  domainerrors.ErrNotFound,
+		FindByCodeError: codeErr,
+	}
+
+	linkUsecase := NewLinkUsecase(&repo, "http://localhost:8080")
+
+	req := dto.ShortenRequest{URL: "https://go.dev/doc/"}
+
+	res, err := linkUsecase.Shorten(req)
+
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	if !errors.Is(err, codeErr) {
+		t.Fatalf("expected %v, got %v", codeErr, err)
+	}
+
+	if res != nil {
+		t.Fatalf("expected response to be nil")
+	}
+}
