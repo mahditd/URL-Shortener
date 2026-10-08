@@ -34,13 +34,13 @@ func (h *LinkHandler) Shorten(ctx *gin.Context) {
 	if err != nil {
 		if errors.Is(err, domainerrors.ErrInvalidURL) {
 			ctx.JSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
+				"error": "internal server error",
 			})
 			return
 		}
 
 		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
+			"error": "internal server error",
 		})
 		return
 	}
@@ -60,7 +60,7 @@ func (h *LinkHandler) Redirect(ctx *gin.Context) {
 			return
 		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
+			"error": "internal server error",
 		})
 		return
 	}
@@ -82,7 +82,7 @@ func (h *LinkHandler) Metadata(ctx *gin.Context) {
 			return
 		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
+			"error": "internal server error",
 		})
 		return
 	}
