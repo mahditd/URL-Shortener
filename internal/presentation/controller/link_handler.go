@@ -6,17 +6,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mahditd/url-shortener/internal/application/dto"
-	"github.com/mahditd/url-shortener/internal/application/usecase"
 	domainerrors "github.com/mahditd/url-shortener/internal/domain/errors"
 )
 
 type LinkHandler struct {
-	usecase *usecase.LinkUsecase
+	service LinkService
 }
 
-func NewLinkHandler(usecase *usecase.LinkUsecase) *LinkHandler {
+func NewLinkHandler(service LinkService) *LinkHandler {
 	return &LinkHandler{
-		usecase: usecase,
+		service: service,
 	}
 }
 
@@ -29,12 +28,12 @@ func (h *LinkHandler) Shorten(ctx *gin.Context) {
 		return
 	}
 
-	res, err := h.usecase.Shorten(params)
+	res, err := h.service.Shorten(params)
 
 	if err != nil {
 		if errors.Is(err, domainerrors.ErrInvalidURL) {
 			ctx.JSON(http.StatusBadRequest, gin.H{
-				"error": "internal server error",
+				"error": "Bad Request",
 			})
 			return
 		}
@@ -51,7 +50,7 @@ func (h *LinkHandler) Shorten(ctx *gin.Context) {
 func (h *LinkHandler) Redirect(ctx *gin.Context) {
 	code := ctx.Param("code")
 
-	link, err := h.usecase.GetLinkByCode(code)
+	link, err := h.service.GetLinkByCode(code)
 	if err != nil {
 		if errors.Is(err, domainerrors.ErrNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{
@@ -72,7 +71,7 @@ func (h *LinkHandler) Metadata(ctx *gin.Context) {
 
 	code := ctx.Param("code")
 
-	link, err := h.usecase.GetLinkByCode(code)
+	link, err := h.service.GetLinkByCode(code)
 
 	if err != nil {
 		if errors.Is(err, domainerrors.ErrNotFound) {
