@@ -386,7 +386,31 @@ go test ./internal/application/usecase -bench=. -benchmem
 
 ---
 
-## Profiling Analysis
+## Benchmark Analysis
+
+The benchmark results show that the redirect path is significantly faster than the URL shortening path.
+
+The redirect operation only requires looking up an existing code and retrieving the corresponding URL. Since it is a read-only operation, it benefits from the lightweight lookup path and does not perform validation, normalization, code generation, or database writes.
+
+The shortening operation has higher latency because it performs multiple steps:
+
+- URL validation
+- URL normalization
+- checking whether the URL already exists
+- generating a new short code when needed
+- storing the new mapping
+
+The difference between these two operations is expected because URL shortening is a write-heavy operation, while redirects are optimized as a frequent read path.
+
+The benchmarks were measured in a single-process environment and are intended to evaluate the efficiency of the implementation before introducing distributed components such as caching or external storage.
+
+## Profiling Insight
+
+CPU profiling showed that the main contributors to execution time were URL normalization and code generation during the shorten operation.
+
+Redirect operations did not show significant CPU usage because they mainly perform a read lookup.
+
+No single operation represented a major bottleneck under benchmark conditions.
 
 CPU profiling was performed using:
 
