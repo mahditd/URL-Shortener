@@ -211,11 +211,11 @@ Response:
 
 Possible responses:
 
-| Status Code | Description |
-|-------------|-------------|
-| 201 | URL shortened successfully |
-| 400 | Invalid URL |
-| 500 | Internal server error |
+| Status Code | Description                |
+| ----------- | -------------------------- |
+| 201         | URL shortened successfully |
+| 400         | Invalid URL                |
+| 500         | Internal server error      |
 
 ---
 
@@ -233,30 +233,29 @@ GET /aB12cd
 
 Possible responses:
 
-| Status Code | Description |
-|-------------|-------------|
-| 302 | Redirect successful |
-| 404 | Short code not found |
+| Status Code | Description          |
+| ----------- | -------------------- |
+| 302         | Redirect successful  |
+| 404         | Short code not found |
 
 ---
 
 ## Get Link Metadata
 
-### GET `/api/links/{code}`
+### GET `/api/v1/links/{code}`
 
 Returns information about a shortened URL.
 
 Example:
 
 ```
-GET /api/links/aB12cd
+GET /api/v1/links/aB12cd
 ```
 
 Response:
 
 ```json
 {
-  "code": "aB12cd",
   "url": "https://example.com",
   "created_at": "2026-10-09T12:00:00Z"
 }
@@ -264,11 +263,11 @@ Response:
 
 Possible responses:
 
-| Status Code | Description |
-|-------------|-------------|
-| 200 | Link metadata returned successfully |
-| 404 | Short code not found |
-| 500 | Internal server error |
+| Status Code | Description                         |
+| ----------- | ----------------------------------- |
+| 200         | Link metadata returned successfully |
+| 404         | Short code not found                |
+| 500         | Internal server error               |
 
 # Repository Pattern
 
@@ -374,10 +373,10 @@ CPU: Intel Core i7-13620H
 
 Example benchmark results:
 
-| Operation | Result |
-|-----------|--------|
-| URL Shortening | ~1.9 μs/op |
-| Redirect Lookup | ~41 ns/op |
+| Operation       | Result     |
+| --------------- | ---------- |
+| URL Shortening  | ~1.9 μs/op |
+| Redirect Lookup | ~41 ns/op  |
 
 Run benchmarks:
 
@@ -387,6 +386,14 @@ go test ./internal/application/usecase -bench=. -benchmem
 
 ---
 
+## Profiling Analysis
+
+CPU profiling was performed using:
+
+````bash
+go test -cpuprofile=cpu.prof ./internal/application/usecase
+go tool pprof -top cpu.prof
+
 # Usage Example
 
 Create a shortened URL:
@@ -395,7 +402,7 @@ Create a shortened URL:
 curl -X POST http://localhost:8080/api/shorten \
 -H "Content-Type: application/json" \
 -d '{"url":"https://example.com"}'
-```
+````
 
 Example response:
 
