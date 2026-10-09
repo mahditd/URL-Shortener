@@ -171,6 +171,49 @@ No additional direct dependencies were used outside the allowed web framework (G
 
 ## Part 5
 
+### Stateless Application and Shared Storage
+
+The application is designed to support horizontal scaling by keeping application instances stateless.
+
+A production deployment can run multiple Go application replicas behind a load balancer:
+
+Client → Load Balancer → Multiple Go Instances → Shared PostgreSQL Database
+
+When using shared persistent storage, application instances do not store persistent link data locally.
+
+When deployed with PostgreSQL storage, PostgreSQL acts as the shared source of truth for URL mappings. This allows any application instance to process shorten and redirect requests while maintaining consistent data.
+
+The main tradeoff of this approach is increased operational complexity. Running multiple application instances requires infrastructure for service discovery, load balancing, and database availability management.
+
+### Write Path Scaling
+
+The URL creation endpoint is protected by rate limiting to prevent excessive write traffic.
+
+The current implementation limits requests to:
+
+- 10 requests per minute
+- Per client IP address
+
+This reduces abuse and protects application resources during high traffic periods.
+
+For larger-scale deployments, the rate limiter could be moved to a shared store such as Redis so that limits are enforced consistently across multiple application instances.
+
+### Future Read Path Improvements
+
+For very high traffic redirect workloads, a CDN or edge cache could be introduced to cache frequently accessed redirect responses.
+
+Caching 302 redirects reduces load on application servers and PostgreSQL.
+
+The main tradeoff is cache consistency. If a URL mapping is modified or removed, cached redirects may remain available until the cache TTL expires.
+
+### Future Database Scaling
+
+If the number of stored links becomes too large for a single PostgreSQL instance, the database can be partitioned or sharded.
+
+Possible strategies include partitioning by code prefix or distributing records using consistent hashing.
+
+The tradeoff is increased system complexity because queries, migrations, and operational tasks become more difficult in a distributed database environment.
+
 ## Part 6
 
 ### Graceful Shutdown
