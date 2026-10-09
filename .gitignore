@@ -6,6 +6,8 @@
 coverage
 coverage.out
 coverage.html
+cpu
+cpu.out
 
 # IDE files
 .vscode/
