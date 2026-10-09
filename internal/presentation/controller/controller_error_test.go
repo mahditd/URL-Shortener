@@ -23,7 +23,7 @@ func setupTestRouterWithRepository(repository ports.LinkRepository) *gin.Engine 
 
 	linkHandler := controller.NewLinkHandler(linkUsecase)
 
-	routes.SetUpRoutes(router, linkHandler)
+	routes.SetUpRoutes(router, linkHandler, nil)
 
 	return router
 }

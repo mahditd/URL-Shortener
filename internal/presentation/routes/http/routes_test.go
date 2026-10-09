@@ -20,7 +20,7 @@ func TestSetUpRoutes(t *testing.T) {
 
 	router := gin.New()
 
-	SetUpRoutes(router, handler)
+	SetUpRoutes(router, handler, nil)
 
 	routes := router.Routes()
 

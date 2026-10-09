@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/mahditd/url-shortener/bootstrap"
@@ -10,6 +14,7 @@ import (
 	"github.com/mahditd/url-shortener/internal/infrastructure/database"
 	"github.com/mahditd/url-shortener/internal/infrastructure/persistence/memory"
 	"github.com/mahditd/url-shortener/internal/infrastructure/persistence/postgres"
+	"github.com/mahditd/url-shortener/internal/presentation/middleware"
 )
 
 func main() {
@@ -58,7 +63,12 @@ func main() {
 		panic("invalid storage option")
 	}
 
-	app := bootstrap.NewApp(*baseURL, repository)
+	rateLimiter := middleware.NewRateLimiter(
+		10,
+		time.Minute,
+	)
+
+	app := bootstrap.NewApp(*baseURL, repository , rateLimiter)
 
 	server := &http.Server{
 		Addr:         *addr,
@@ -68,5 +78,34 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	server.ListenAndServe()
+	go func() {
+		err := server.ListenAndServe()
+
+		if err != nil && err != http.ErrServerClosed {
+			panic(err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+
+	signal.Notify(
+		quit,
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+
+	<-quit
+
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		5*time.Second,
+	)
+
+	defer cancel()
+
+	err := server.Shutdown(ctx)
+
+	if err != nil {
+		panic(err)
+	}
 }
