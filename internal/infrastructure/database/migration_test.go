@@ -6,7 +6,7 @@ func TestAutoMigrate(t *testing.T) {
 	db, err := NewPostgresConnection()
 
 	if err != nil {
-		t.Fatalf("failed to connect: %v", err)
+		t.Skipf("skipping postgres test (database unavailable): %v", err)
 	}
 
 	err = AutoMigrate(db)

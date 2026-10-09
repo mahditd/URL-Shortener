@@ -47,6 +47,11 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		err = database.AutoMigrate(db)
+
+		if err != nil {
+			panic(err)
+		}
 
 		repository = postgres.NewLinkRepository(db)
 	default:
