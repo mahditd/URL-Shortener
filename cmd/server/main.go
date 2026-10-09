@@ -6,6 +6,10 @@ import (
 	"time"
 
 	"github.com/mahditd/url-shortener/bootstrap"
+	"github.com/mahditd/url-shortener/internal/domain/ports"
+	"github.com/mahditd/url-shortener/internal/infrastructure/database"
+	"github.com/mahditd/url-shortener/internal/infrastructure/persistence/memory"
+	"github.com/mahditd/url-shortener/internal/infrastructure/persistence/postgres"
 )
 
 func main() {
@@ -22,9 +26,34 @@ func main() {
 		"base URL for generated short links",
 	)
 
+	storage := flag.String(
+		"storage",
+		"memory",
+		"storage backend: memory or postgres",
+	)
+
 	flag.Parse()
 
-	app := bootstrap.NewApp(*baseURL)
+	var repository ports.LinkRepository
+
+	switch *storage {
+	case "memory":
+
+		repository = memory.NewLinkRepository()
+
+	case "postgres":
+		db, err := database.NewPostgresConnection()
+
+		if err != nil {
+			panic(err)
+		}
+
+		repository = postgres.NewLinkRepository(db)
+	default:
+		panic("invalid storage option")
+	}
+
+	app := bootstrap.NewApp(*baseURL, repository)
 
 	server := &http.Server{
 		Addr:         *addr,

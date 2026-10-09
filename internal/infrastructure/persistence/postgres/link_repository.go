@@ -1,7 +1,10 @@
 package postgres
 
 import (
+	"errors"
+
 	"github.com/mahditd/url-shortener/internal/domain/entities"
+	domainerrors "github.com/mahditd/url-shortener/internal/domain/errors"
 	"github.com/mahditd/url-shortener/internal/infrastructure/persistence/postgres/models"
 	"gorm.io/gorm"
 )
@@ -30,6 +33,9 @@ func (r *LinkRepository) FindByCode(code string) (*entities.Link, error) {
 		First(&model).
 		Error
 
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, domainerrors.ErrNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +53,9 @@ func (r *LinkRepository) FindByURL(url string) (*entities.Link, error) {
 		First(&model).
 		Error
 
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, domainerrors.ErrNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
